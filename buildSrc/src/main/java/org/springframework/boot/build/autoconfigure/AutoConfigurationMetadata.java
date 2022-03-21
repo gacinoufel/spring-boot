@@ -75,6 +75,59 @@ public class AutoConfigurationMetadata extends DefaultTask {
 		this.outputFile = outputFile;
 	}
 
+	
+	//------------------
+	@TaskAction
+	void documentAutoConfiguration() throws IOException {
+		Properties autoConfiguration = readAutoConfiguration();
+		getOutputFile().getParentFile().mkdirs();
+		try (FileWriter writer = new FileWriter(getOutputFile())) {
+			autoConfiguration.store(writer, null);
+		}
+	}
+	
+	
+	//-----------------------------------
+	public AutoConfigurationMetadata() {
+		getInputs()
+				.file((Callable<File>) () -> new File(this.sourceSet.getOutput().getResourcesDir(),
+						"META-INF/spring.factories"))
+				.withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("spring.factories");
+		getInputs()
+				.file((Callable<File>) () -> new File(this.sourceSet.getOutput().getResourcesDir(),
+						"META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports"))
+				.withPathSensitivity(PathSensitivity.RELATIVE)
+				.withPropertyName("org.springframework.boot.autoconfigure.AutoConfiguration");
+
+		dependsOn((Callable<String>) () -> this.sourceSet.getProcessResourcesTaskName());
+		getProject().getConfigurations()
+				.maybeCreate(AutoConfigurationPlugin.AUTO_CONFIGURATION_METADATA_CONFIGURATION_NAME);
+
+    
+          
+            
+    
+
+          
+          
+            
+    
+
+          
+    
+    @@ -86,11 +99,9 @@ void documentAutoConfiguration() throws IOException {
+  
+	}
+	public void setSourceSet(SourceSet sourceSet) {
+		this.sourceSet = sourceSet;
+	}
+	@OutputFile
+	public File getOutputFile() {
+		return this.outputFile;
+	}
+	public void setOutputFile(File outputFile) {
+		this.outputFile = outputFile;
+	}
 	@TaskAction
 	void documentAutoConfiguration() throws IOException {
 		Properties autoConfiguration = readAutoConfiguration();
@@ -86,11 +139,9 @@ public class AutoConfigurationMetadata extends DefaultTask {
 
 	private Properties readAutoConfiguration() throws IOException {
 		Properties autoConfiguration = CollectionFactory.createSortedProperties(true);
-		Properties springFactories = readSpringFactories(
-				new File(this.sourceSet.getOutput().getResourcesDir(), "META-INF/spring.factories"));
-		String enableAutoConfiguration = springFactories
-				.getProperty("org.springframework.boot.autoconfigure.EnableAutoConfiguration");
-		Set<String> classNames = StringUtils.commaDelimitedListToSet(enableAutoConfiguration);
+		Set<String> classNames = new LinkedHashSet<>();
+		classNames.addAll(readSpringFactories());
+		classNames.addAll(readAutoConfigurationsFile());
 		Set<String> publicClassNames = new LinkedHashSet<>();
 		for (String className : classNames) {
 			File classFile = findClassFile(className);
@@ -107,6 +158,49 @@ public class AutoConfigurationMetadata extends DefaultTask {
 		autoConfiguration.setProperty("autoConfigurationClassNames", String.join(",", publicClassNames));
 		autoConfiguration.setProperty("module", getProject().getName());
 		return autoConfiguration;
+	}
+
+	/**
+	 * Reads auto-configurations from META-INF/spring.factories.
+	 * @return auto-configurations
+	 */
+	private Set<String> readSpringFactories() throws IOException {
+		File file = new File(this.sourceSet.getOutput().getResourcesDir(), "META-INF/spring.factories");
+		if (!file.exists()) {
+			return Collections.emptySet();
+		}
+		Properties springFactories = readSpringFactories(file);
+		String enableAutoConfiguration = springFactories
+				.getProperty("org.springframework.boot.autoconfigure.EnableAutoConfiguration");
+		return StringUtils.commaDelimitedListToSet(enableAutoConfiguration);
+	}
+
+	/**
+	 * Reads auto-configurations from
+	 *
+	 * @return auto-configurations
+	 */
+	private List<String> readAutoConfigurationsFile() throws IOException {
+		File file = new File(this.sourceSet.getOutput().getResourcesDir(),
+				"META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports");
+		if (!file.exists()) {
+			return Collections.emptyList();
+		}
+		// Nearly identical copy of
+		// org.springframework.boot.context.annotation.ImportCandidates.load
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
+			List<String> autoConfigurations = new ArrayList<>();
+			String line;
+			while ((line = reader.readLine()) != null) {
+				line = stripComment(line);
+				line = line.trim();
+				if (line.isEmpty()) {
+					continue;
+				}
+				autoConfigurations.add(line);
+			}
+			return autoConfigurations;
+		}
 	}
 
 	private File findClassFile(String className) {
