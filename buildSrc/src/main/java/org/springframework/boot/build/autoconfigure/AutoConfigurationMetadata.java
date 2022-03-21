@@ -202,7 +202,16 @@ public class AutoConfigurationMetadata extends DefaultTask {
 			return autoConfigurations;
 		}
 	}
-
+	
+		
+	private String stripComment(String line) {
+		int commentStart = line.indexOf(COMMENT_START);
+		if (commentStart == -1) {
+			return line;
+		}
+		return line.substring(0, commentStart);
+	}
+		
 	private File findClassFile(String className) {
 		String classFileName = className.replace(".", "/") + ".class";
 		for (File classesDir : this.sourceSet.getOutput().getClassesDirs()) {
