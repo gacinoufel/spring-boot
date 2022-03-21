@@ -47,7 +47,7 @@ import org.springframework.util.StringUtils;
  * @author Andy Wilkinson
  */
 public class AutoConfigurationMetadata extends DefaultTask {
-
+	private static final String COMMENT_BEGIN = "#";
 	private SourceSet sourceSet;
 
 	private File outputFile;
@@ -205,7 +205,7 @@ public class AutoConfigurationMetadata extends DefaultTask {
 	
 		
 	private String stripComment(String line) {
-		int commentStart = line.indexOf(COMMENT_START);
+		int commentStart = line.indexOf(COMMENT_BEGIN);
 		if (commentStart == -1) {
 			return line;
 		}
