@@ -81,10 +81,10 @@ class CloudFoundrySecurityInterceptor {
 			Token token = getToken(exchange.getRequest());
 			return this.tokenValidator.validate(token)
 					.then(this.cloudFoundrySecurityService.getAccessLevel(token.toString(), this.applicationId))
-					.filter((accessLevel) -> accessLevel.isAccessAllowed(id))
+					.filter(accessLevel -> accessLevel.isAccessAllowed(id))
 					.switchIfEmpty(
 							Mono.error(new CloudFoundryAuthorizationException(Reason.ACCESS_DENIED, "Access denied")))
-					.doOnSuccess((accessLevel) -> exchange.getAttributes().put("cloudFoundryAccessLevel", accessLevel))
+					.doOnSuccess(accessLevel -> exchange.getAttributes().put("cloudFoundryAccessLevel", accessLevel))
 					.then();
 		}
 		catch (CloudFoundryAuthorizationException ex) {
@@ -93,7 +93,7 @@ class CloudFoundrySecurityInterceptor {
 	}
 
 	private Mono<SecurityResponse> getErrorResponse(Throwable throwable) {
-		if (throwable instanceof CloudFoundryAuthorizationException) {
+		if (throwable instanceof CloudFoundryAuthorizationException cfException)  {
 			CloudFoundryAuthorizationException cfException = (CloudFoundryAuthorizationException) throwable;
 			return Mono.just(new SecurityResponse(cfException.getStatusCode(),
 					"{\"security_error\":\"" + cfException.getMessage() + "\"}"));
